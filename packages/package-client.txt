@@ -1,0 +1,15 @@
+project(yeti_cfg_client_lib)
+cmake_minimum_required(VERSION 2.8)
+
+SET(CONTROL_FILES
+	postinst
+	postrm
+)
+
+include(common.txt)
+
+set(CPACK_PACKAGE_NAME "libyeticc")
+set(CPACK_PACKAGE_FILE_NAME ${CPACK_PACKAGE_NAME}${PACKAGE_FILE_NAME_SUFFIX})
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "client library for management node for YETI project")
+
+include(CPack)

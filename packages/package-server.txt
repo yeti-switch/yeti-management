@@ -1,0 +1,31 @@
+project(yeti_management)
+cmake_minimum_required(VERSION 2.8)
+
+SET(CONTROL_FILES
+        postinst
+        postrm
+)
+
+set(INIT_FILES
+        yeti-management.init
+)
+
+set(DEF_FILES
+        yeti_management
+)
+
+set(SYSLOG_FILES
+        yeti-management.conf
+)
+
+include(common.txt)
+
+set(CPACK_PACKAGE_NAME "yeti-management")
+set(CPACK_PACKAGE_FILE_NAME ${CPACK_PACKAGE_NAME}${PACKAGE_FILE_NAME_SUFFIX})
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "management node for YETI project")
+set(CPACK_DEBIAN_PACKAGE_DEPENDS_LIST
+	"rsyslog"
+)
+string(REPLACE ";" ", " CPACK_DEBIAN_PACKAGE_DEPENDS "${CPACK_DEBIAN_PACKAGE_DEPENDS_LIST}")
+
+include(CPack)

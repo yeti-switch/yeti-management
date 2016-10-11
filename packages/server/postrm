@@ -1,0 +1,9 @@
+#!/bin/sh
+
+set -e 
+
+invoke-rc.d rsyslog restart
+
+update-rc.d yeti-management remove || true
+
+exit 0

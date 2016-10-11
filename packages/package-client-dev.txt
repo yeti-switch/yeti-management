@@ -1,0 +1,16 @@
+project(yeti_cfg_client_lib_dev)
+cmake_minimum_required(VERSION 2.8)
+
+include(common-dev.txt)
+
+set(CPACK_PACKAGE_NAME "libyeticc-dev")
+set(CPACK_DEBIAN_PACKAGE_SECTION "libdevel")
+set(CPACK_PACKAGE_FILE_NAME ${CPACK_PACKAGE_NAME}${PACKAGE_FILE_NAME_SUFFIX})
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "development files for client library for management node for YETI project")
+
+set(CPACK_DEBIAN_PACKAGE_DEPENDS_LIST
+	"libyeticc(=${DEB_VERSION})"
+)
+STRING(REPLACE ";" ", " CPACK_DEBIAN_PACKAGE_DEPENDS "${CPACK_DEBIAN_PACKAGE_DEPENDS_LIST}")
+
+include(CPack)

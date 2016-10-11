@@ -1,0 +1,6 @@
+Name: libyeticc
+Version: @FULL_VERSION@
+Description: configuration client library for YETI project
+Requires:
+Libs: -L@LIB_DIR@ -lyeticc
+Cflags: -I@HDRS_DIR@

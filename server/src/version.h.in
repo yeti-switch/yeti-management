@@ -1,0 +1,3 @@
+#ifndef SERVER_VERSION
+#define SERVER_VERSION "@FULL_VERSION@"
+#endif

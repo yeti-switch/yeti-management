@@ -1,0 +1,11 @@
+#!/bin/sh
+
+set -e 
+
+case "$1" in
+	remove)
+		ldconfig 3> /dev/null || true
+	;;
+esac
+
+exit 0
