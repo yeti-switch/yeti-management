@@ -4,6 +4,7 @@
 
 #include "db_opts.h"
 #include "redis_opts.h"
+#include "statistics_opts.h"
 #include "opts_helpers.h"
 
 //routing
@@ -94,5 +95,6 @@ cfg_opt_t sig_yeti_opts[] = {
 	DCFG_SEC(resources,sig_yeti_resources_opts,CFGF_NONE),
 	DCFG_SEC(registrations,sig_yeti_reg_opts,CFGF_NONE),
 	DCFG_SEC(rpc,sig_yeti_rpc_opts,CFGF_NONE),
+	DCFG_SEC(statistics,sig_yeti_statistics_opts,CFGF_NONE),
 	CFG_END()
 };

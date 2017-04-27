@@ -107,6 +107,14 @@ void yeti_cfg_provider::apply_cfg_node(cfg_t *in_cfg,
 		//rpc
 		c = cfg_getsec(y,"rpc");
 		add2hash(c,"calls_show_limit","calls_show_limit",out);
+
+		//statistics
+		c = cfg_getsec(y,"statistics");
+			c = cfg_getsec(c,"active-calls");
+			add2hash(c,"active_calls_period","period",out);
+				c = cfg_getsec(c,"clickhouse");
+				add2hash(c,"active_calls_clickhouse_table","table",out);
+				add2hash(c,"active_calls_clickhouse_queue","queue",out);
 }
 
 const cfg_provider::cfg_keys &yeti_cfg_provider::get_keys(int node_id) const
