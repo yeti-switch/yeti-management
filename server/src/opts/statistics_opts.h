@@ -7,6 +7,7 @@
 cfg_opt_t sig_yeti_statistics_acive_calls_clickhouse_opts[] = {
 	DCFG_STR(table),
 	DCFG_STR(queue),
+	DCFG_BOOL(timelines),
 	DCFG_STR_LIST(allowed_fields),
 	CFG_END()
 };
