@@ -115,7 +115,7 @@ void yeti_cfg_provider::apply_cfg_node(cfg_t *in_cfg,
 				c = cfg_getsec(c,"clickhouse");
 				add2hash(c,"active_calls_clickhouse_table","table",out);
 				add2hash(c,"active_calls_clickhouse_queue","queue",out);
-				add2hash(c,"active_calls_clickhouse_timelines","timelines",out);
+				add2hash(c,"active_calls_clickhouse_buffering","buffering",out);
 				add2hash(c,"active_calls_clickhouse_allowed_fields","allowed_fields",out);
 }
 
