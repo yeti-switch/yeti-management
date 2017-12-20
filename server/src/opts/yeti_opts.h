@@ -83,6 +83,12 @@ cfg_opt_t sig_yeti_reg_opts[] = {
 	CFG_END()
 };
 
+//auth
+cfg_opt_t sig_yeti_auth_opts[] = {
+	DCFG_STR(realm),
+	CFG_END()
+};
+
 //yeti
 cfg_opt_t sig_yeti_opts[] = {
 	DCFG_INT(pop_id),
@@ -96,5 +102,6 @@ cfg_opt_t sig_yeti_opts[] = {
 	DCFG_SEC(registrations,sig_yeti_reg_opts,CFGF_NONE),
 	DCFG_SEC(rpc,sig_yeti_rpc_opts,CFGF_NONE),
 	DCFG_SEC(statistics,sig_yeti_statistics_opts,CFGF_NONE),
+	DCFG_SEC(auth,sig_yeti_auth_opts,CFGF_NONE),
 	CFG_END()
 };

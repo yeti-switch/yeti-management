@@ -117,6 +117,10 @@ void yeti_cfg_provider::apply_cfg_node(cfg_t *in_cfg,
 				add2hash(c,"active_calls_clickhouse_queue","queue",out);
 				add2hash(c,"active_calls_clickhouse_buffering","buffering",out);
 				add2hash(c,"active_calls_clickhouse_allowed_fields","allowed_fields",out);
+
+		//auth
+		c = cfg_getsec(y,"auth");
+			add2hash(c,"auth_realm","realm",out);
 }
 
 const cfg_provider::cfg_keys &yeti_cfg_provider::get_keys(int node_id) const
