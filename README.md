@@ -7,7 +7,7 @@ yeti-management is a part of project [Yeti]
 ### install build dependencies
 
 ```sh
-# aptitude install libprotobuf-dev libnanomsg-dev libconfuse-dev
+# aptitude install libprotobuf-dev libnanomsg-dev libconfuse-dev protobuf-compiler pkg-kde-tools
 ```
 
 ### get sources & build
