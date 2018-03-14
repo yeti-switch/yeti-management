@@ -124,34 +124,34 @@ int main(int argc,char *argv[])
 {
 	GOOGLE_PROTOBUF_VERIFY_VERSION;
 
-	parse_opts(argc,argv);
-
-	if(cfg.daemonize){
-		if(!cfg.pid_file) cfg.pid_file = strdup(DEFAULT_PID_FILE);
-
-		int pid;
-		if ((pid=fork())<0){
-			cerr("can't fork: %d, errno = %d",pid,errno);
-		} else if(pid!=0) {
-			return 0;
-		}
-
-		cfg.pid = getpid();
-		create_pid_file();
-
-		freopen("/dev/null", "w", stdout);
-		freopen("/dev/null", "w", stderr);
-	}
-	freopen("/dev/null", "r", stdin);
-
 	open_log();
-	info("starting version %s",SERVER_VERSION);
 
-	set_sighandlers();
+	parse_opts(argc,argv);
 
 	try {
 		mgmt_server &srv = mgmt_server::instance();
 		srv.configure();
+
+		if(cfg.daemonize){
+			if(!cfg.pid_file) cfg.pid_file = strdup(DEFAULT_PID_FILE);
+
+			int pid;
+			if ((pid=fork())<0){
+				cerr("can't fork: %d, errno = %d",pid,errno);
+			} else if(pid!=0) {
+				return 0;
+			}
+
+			cfg.pid = getpid();
+			create_pid_file();
+
+			freopen("/dev/null", "w", stdout);
+			freopen("/dev/null", "w", stderr);
+		}
+		freopen("/dev/null", "r", stdin);
+
+		info("starting version %s",SERVER_VERSION);
+		set_sighandlers();
 		srv.loop(cfg.bind_urls);
 	} catch(std::string &s){
 		err("%s",s.c_str());
