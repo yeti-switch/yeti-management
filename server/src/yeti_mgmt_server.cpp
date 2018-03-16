@@ -102,6 +102,8 @@ void sig_handler(int sig){
 			info("configuration were successfully reloaded");
 		} catch(std::string &e){
 			err("configuration reload error: %s",e.c_str());
+		} catch(cfg_exception &e){
+			err("configuration reload error: %s",e.what());
 		} catch(...){
 			err("uknown configuration reload error");
 		}
@@ -124,6 +126,8 @@ void set_sighandlers() {
 int main(int argc,char *argv[])
 {
 	GOOGLE_PROTOBUF_VERIFY_VERSION;
+
+	int ret = EXIT_SUCCESS;
 
 	open_log();
 
@@ -154,10 +158,15 @@ int main(int argc,char *argv[])
 		info("starting version %s",SERVER_VERSION);
 		set_sighandlers();
 		srv.loop(cfg.bind_urls);
-	} catch(std::string &s){
+	} catch(cfg_exception &e) {
+		err("%s",e.what())
+		ret = EXIT_CFG_EXCEPTION;
+	} catch(std::string &s) {
 		err("%s",s.c_str());
+		ret = EXIT_FAILURE;
 	} catch(std::exception &e) {
-		err("%s\n",e.what());
+		err("%s",e.what());
+		ret = EXIT_FAILURE;
 	}
 
 	delete_pid_file();
@@ -167,6 +176,6 @@ int main(int argc,char *argv[])
 
 	google::protobuf::ShutdownProtobufLibrary();
 
-	return 0;
+	return ret;
 }
 

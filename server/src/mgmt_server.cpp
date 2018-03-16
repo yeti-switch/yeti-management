@@ -70,16 +70,16 @@ void mgmt_server::configure()
 
 	daemon_cfg_reader cr;
 	if(!cr.load("/etc/yeti/management.cfg")){
-		throw std::string("can't load daemon config");
+		throw cfg_exception("can't load daemon config");
 	}
 
 	if(!cr.apply()){
-		throw std::string("can't apply daemon config");
+		throw cfg_exception("can't apply daemon config");
 	}
 
 	system_cfg_reader scr;
 	if(!scr.load("/etc/yeti/system.cfg")){
-		throw std::string("can't load system config");
+		throw cfg_exception("can't load system config");
 	}
 	cfg = scr.get_cfg();
 
@@ -87,7 +87,7 @@ void mgmt_server::configure()
 	add_provider("lnp",lnp_cfg_provider);
 
 	if(tmp_cfg_providers.empty()){
-		throw std::string("there are no any configured providers");
+		throw cfg_exception("there are no any configured providers");
 	}
 
 	cfg_mutex.lock();

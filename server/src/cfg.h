@@ -5,6 +5,17 @@ using std::string;
 
 #include <list>
 
+#define EXIT_CFG_EXCEPTION 2
+
+class cfg_exception
+  : public std::exception
+{
+    std::string reason;
+  public:
+    cfg_exception(const std::string &s) { }
+    const char* what() const noexcept { return reason.c_str(); }
+};
+
 struct global_cfg_t {
 	bool daemonize;
 	int pid;
