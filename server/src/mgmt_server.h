@@ -19,10 +19,13 @@
 #include "node_cfg_providers/cfg_provider.h"
 #include "cfg_reader.h"
 #include "thread.h"
+#include "SctpServer.h"
 
 using std::string;
 
-class mgmt_server {
+class mgmt_server
+  : public SctpServer
+{
 	bool _stop;
 	int s;
 	static std::unique_ptr<mgmt_server> _self;
@@ -42,16 +45,9 @@ class mgmt_server {
 
 	void operator=(mgmt_server const&);
 
-	struct internal_exception {
-		int c;
-		string e;
-		internal_exception(int code, string error):
-			c(code), e(error) {}
-	};
-
 	int process_peer(char *msg, int len);
-	void create_reply(string &reply, const CfgRequest &req);
-	void create_error_reply(string &reply,int code, std::string description);
+	void create_reply(CfgResponse &reply, const CfgRequest &req);
+	void create_error_reply(CfgResponse &reply,int code, std::string description);
 
   public:
 	static mgmt_server& instance(){
@@ -60,6 +56,6 @@ class mgmt_server {
 	}
 	void configure();
 	void show_config();
-	void loop(const std::list<string> &urls);
+	void loop();
 	void stop() { dbg_func(); _stop = true; }
 };

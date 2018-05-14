@@ -122,7 +122,6 @@ void set_sighandlers() {
 	}
 }
 
-
 int main(int argc,char *argv[])
 {
 	GOOGLE_PROTOBUF_VERIFY_VERSION;
@@ -135,6 +134,8 @@ int main(int argc,char *argv[])
 
 	try {
 		mgmt_server &srv = mgmt_server::instance();
+		log_level = L_DBG;
+		dbg("configure mgmt");
 		srv.configure();
 
 		if(cfg.daemonize){
@@ -157,7 +158,7 @@ int main(int argc,char *argv[])
 
 		info("starting version %s",SERVER_VERSION);
 		set_sighandlers();
-		srv.loop(cfg.bind_urls);
+		srv.loop();
 	} catch(cfg_exception &e) {
 		err("%s",e.what())
 		ret = EXIT_CFG_EXCEPTION;

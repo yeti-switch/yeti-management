@@ -10,8 +10,6 @@
 
 std::unique_ptr<mgmt_server> mgmt_server::_self(nullptr);
 
-#include "opts/opts.h"
-
 class daemon_cfg_reader: public cfg_reader {
   public:
 	daemon_cfg_reader():
@@ -66,8 +64,6 @@ void mgmt_server::configure()
 	cfg_providers_t tmp_cfg_providers;
 	std::pair<cfg_providers_t::iterator,bool> i;
 
-	dbg_func();
-
 	daemon_cfg_reader cr;
 	if(!cr.load("/etc/yeti/management.cfg")){
 		throw cfg_exception("can't load daemon config");
@@ -75,6 +71,16 @@ void mgmt_server::configure()
 
 	if(!cr.apply()){
 		throw cfg_exception("can't apply daemon config");
+	}
+
+	cfg_t *daemon_section = cfg_getsec(cr.get_cfg(),"daemon");
+	cfg_t *sctp_cfg = cfg_getsec(daemon_section,"sctp");
+
+	if(!sctp_cfg)
+		throw cfg_exception("missed 'daemon.sctp' section");
+
+	if(sctp_init(sctp_cfg)) {
+		throw std::string("failed to init sctp server");
 	}
 
 	system_cfg_reader scr;
@@ -97,9 +103,13 @@ void mgmt_server::configure()
 #undef add_provider
 }
 
-void mgmt_server::loop(const std::list<string> &urls)
+void mgmt_server::loop()
 {
 	dbg_func();
+
+	pthread_setname_np(__gthread_self(), "mgmt-server");
+
+	sctp_start();
 
 	s = nn_socket(AF_SP,NN_REP);
 	if(s < 0){
@@ -140,24 +150,30 @@ void mgmt_server::loop(const std::list<string> &urls)
 		process_peer(msg,l);
 		nn_freemsg(msg);
 	}
+
+	on_stop();
 }
 
 int mgmt_server::process_peer(char *msg, int len)
 {
 	string reply;
+	CfgResponse cfg_reply;
 	try {
 		CfgRequest req;
 		if(!req.ParseFromArray(msg,len)){
 			throw std::string("can't decode request");
 		}
-		create_reply(reply,req);
+		create_reply(cfg_reply,req);
+		cfg_reply.SerializeToString(&reply);
 	} catch(internal_exception &e){
 		err("internal_exception: %d %s",e.c,e.e.c_str());
-		create_error_reply(reply,e.c,e.e);
+		create_error_reply(cfg_reply,e.c,e.e);
 	} catch(std::string &e){
 		err("%s",e.c_str());
-		create_error_reply(reply,500,"Internal Error");
+		create_error_reply(cfg_reply,500,"Internal Error");
 	}
+
+	cfg_reply.SerializeToString(&reply);
 
 	int l = nn_send(s, reply.data(), reply.size(), 0);
 	if(l!=reply.size()){
@@ -166,28 +182,25 @@ int mgmt_server::process_peer(char *msg, int len)
 	return 0;
 }
 
-void mgmt_server::create_error_reply(string &reply,
+void mgmt_server::create_error_reply(CfgResponse &reply,
 									 int code, std::string description)
 {
 	dbg("reply with error: %d %s",code,description.c_str());
-	CfgResponse m;
-	CfgResponse_Error *e = m.mutable_error();
+	CfgResponse_Error *e = reply.mutable_error();
 	if(!e){
 		dbg("can't mutate to error oneOf");
-		reply.clear();
+		return;
 	}
 
 	e->set_code(code);
 	e->set_reason(description);
-	m.SerializeToString(&reply);
 }
 
-void mgmt_server::create_reply(string &reply, const CfgRequest &req)
+void mgmt_server::create_reply(CfgResponse &reply, const CfgRequest &req)
 {
 	info("process request for '%s' node %d",req.cfg_part().c_str(),req.node_id());
 
-	CfgResponse m;
-	CfgResponse_Values *v = m.mutable_values();
+	CfgResponse_Values *v = reply.mutable_values();
 	if(!v){
 		throw internal_exception(500,"serialization error");
 	}
@@ -213,8 +226,6 @@ void mgmt_server::create_reply(string &reply, const CfgRequest &req)
 	}
 
 	cfg_mutex.unlock();
-
-	m.SerializeToString(&reply);
 }
 
 void mgmt_server::show_config(){

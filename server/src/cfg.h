@@ -1,5 +1,7 @@
 #pragma once
 
+#include "opts/opts.h"
+
 #include <string>
 using std::string;
 
@@ -12,7 +14,9 @@ class cfg_exception
 {
     std::string reason;
   public:
-    cfg_exception(const std::string &s) { }
+    cfg_exception(const std::string &s)
+      : reason(s)
+    { }
     const char* what() const noexcept { return reason.c_str(); }
 };
 

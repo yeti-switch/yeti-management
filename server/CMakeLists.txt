@@ -5,6 +5,7 @@ cmake_policy(SET CMP0026 OLD)
 find_package(Threads REQUIRED)
 find_package(NanoMsg REQUIRED)
 find_package(Confuse REQUIRED)
+find_package(SCTP REQUIRED)
 
 include_directories(${CMAKE_SOURCE_DIR}/format/src ${CMAKE_CURRENT_SOURCE_DIR}/src)
 include_directories(${PB_INCLUDE_DIRS})
@@ -17,6 +18,7 @@ target_link_libraries(yeti_management
 	${CMAKE_THREAD_LIBS_INIT}
 	${NanoMsg_LIBRARIES}
 	${Confuse_LIBRARIES}
+	${SCTP_LIBRARIES}
 	${PB_LIBRARIES})
 
 install(TARGETS yeti_management DESTINATION ${RUNTIME_DIR})
