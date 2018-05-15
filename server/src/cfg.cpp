@@ -5,8 +5,6 @@
 #include "opts/lnp_opts.h"
 #include "opts/daemon_opts.h"
 
-#define DEFAULT_PID_FILE "/var/run/yeti_management.pid"
-
 cfg_opt_t system_opts[] = {
 	CFG_SEC((char*)"signalling",sig_opts,CFGF_NONE),
 	CFG_SEC((char*)"lnp",lnp_opts,CFGF_NONE),

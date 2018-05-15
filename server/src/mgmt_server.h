@@ -19,12 +19,15 @@
 #include "node_cfg_providers/cfg_provider.h"
 #include "cfg_reader.h"
 #include "thread.h"
+
 #include "SctpServer.h"
+#include "HttpServer.h"
 
 using std::string;
 
 class mgmt_server
-  : public SctpServer
+  : public SctpServer,
+    public HttpServer
 {
 	bool _stop;
 	int s;
@@ -49,6 +52,9 @@ class mgmt_server
 	void create_reply(CfgResponse &reply, const CfgRequest &req);
 	void create_error_reply(CfgResponse &reply,int code, std::string description);
 
+  protected:
+    bool process_collected_json_replies(json_request_info &req_info, bool timeout);
+
   public:
 	static mgmt_server& instance(){
 		if(_self.get()==0) _self.reset(new mgmt_server());
@@ -58,4 +64,7 @@ class mgmt_server
 	void show_config();
 	void loop();
 	void stop() { dbg_func(); _stop = true; }
+
+	void on_http_stats_request(struct evhttp_request *req) override;
+	void on_timer(struct timeval &) override;
 };

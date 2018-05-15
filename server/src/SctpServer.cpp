@@ -6,8 +6,11 @@
 #include <sys/epoll.h>
 #include <sys/eventfd.h>
 #include <sys/timerfd.h>
+#include <sys/time.h>
 
 #include "YetiEvent.pb.h"
+
+#include "cJSON.h"
 
 #include <vector>
 using std::vector;
@@ -35,7 +38,8 @@ static void longlong2timespec(struct timespec &ts,unsigned long long msec)
 SctpServer::SctpServer()
   : epoll_fd(-1),
     sctp_fd(-1),
-    state(Closed)
+    state(Closed),
+    jsonrpc_cseq(1)
 {}
 
 SctpServer::~SctpServer()
@@ -101,20 +105,12 @@ int SctpServer::sctp_configure(cfg_t *cfg)
     if(epoll_ctl(epoll_fd, EPOLL_CTL_ADD, sctp_fd, &ev) == -1)
         sctp_sys_err("epoll_ctl(EPOLL_CTL_ADD)");
 
-    /*if(0!=server_connection.init(epoll_fd,a)) {
-        err("failed to init sctp server connection");
-        return -1;
-    }*/
-
-    dbg("SctpBus configured");
-
     return 0;
 }
 
 int SctpServer::sctp_init(cfg_t *cfg) {
 
     dbg_func();
-    //AmPlugIn::registerDIInterface(getName(),this);
 
     if((epoll_fd = epoll_create(10)) == -1) {
         throw std::string("epoll_create failed");
@@ -150,8 +146,6 @@ int SctpServer::sctp_init(cfg_t *cfg) {
     if(-1==sctp_configure(cfg))
         return -1;
 
-    dbg("SctpBus initialized");
-
     return 0;
 }
 
@@ -166,6 +160,7 @@ void SctpServer::run()
     int ret,f;
     bool running;
     uint64_t u;
+    struct timeval now;
     struct epoll_event events[EPOLL_MAX_EVENTS];
 
     pthread_setname_np(__gthread_self(), "sctp-bus");
@@ -185,7 +180,8 @@ void SctpServer::run()
             struct epoll_event &e = events[n];
             f = e.data.fd;
             if(f==-timer_fd) {
-                on_timer();
+                gettimeofday(&now, nullptr);
+                on_timer(now);
                 ::read(timer_fd, &u, sizeof(uint64_t));
             /*} else if(f== -queue_fd()){
                 clear_pending();
@@ -206,29 +202,31 @@ void SctpServer::run()
     close(stop_event_fd);
     close(timer_fd);
 
-    dbg("SctpBus stopped");
+    dbg("SCTP server stopped");
 }
 
-void SctpServer::on_stop()
+void SctpServer::sctp_stop()
 {
     uint64_t u = 1;
     write(stop_event_fd, &u, sizeof(uint64_t));
     _t.join();
 }
 
-void SctpServer::on_timer()
+void SctpServer::on_timer(struct timeval &now)
 {
     //dbg("on_timer");
+#if 0
     clients_mutex.lock();
     for(const auto &client : clients) {
         const client_info &info = client.second;
-        dbg("assoc_id: %d, remote_host: %s, remote_port: %d, "
+        /*dbg("assoc_id: %d, remote_host: %s, remote_port: %d, "
             "node_id: %d, events_received: %ld",
             client.first,
             info.host.c_str(), info.port,
-            info.node_id, info.events_received);
+            info.node_id, info.events_received);*/
     }
     clients_mutex.unlock();
+#endif
 }
 
 void SctpServer::handle_notification(const sockaddr_storage &from)
@@ -373,13 +371,12 @@ int SctpServer::process(uint32_t events)
         return -1;
     }
 
-    dbg("RECV sctp_bus event %d:%s -> %d:%s/%d, seq: %ld",
+    dbg("RECV sctp_bus event %d:%s -> %d:%s/%d",
         e.src_node_id(),
         e.src_session_id().c_str(),
         e.dst_node_id(),
         e.dst_session_id().c_str(),
-        sinfo.sinfo_assoc_id,
-        e.has_sequence()? e.sequence() : -1);
+        sinfo.sinfo_assoc_id);
 
     clients_mutex.lock();
     ClientsMap::iterator it = clients.find(sinfo.sinfo_assoc_id);
@@ -390,39 +387,59 @@ int SctpServer::process(uint32_t events)
         return -1;
     }
 
-    client_info &cinfo = it->second;
+    struct client_info &cinfo = it->second;
     cinfo.node_id = e.src_node_id();
     cinfo.events_received++;
 
-    clients_mutex.unlock();
+    if(e.src_session_id()=="jsonrpc") {
+        onIncomingJsonPDU(sinfo.sinfo_assoc_id,cinfo,e);
+    } else {
+        onIncomingYetiPDU(sinfo.sinfo_assoc_id,cinfo,e);
+    }
 
-    onIncomingPDU(sinfo.sinfo_assoc_id,e);
+    clients_mutex.unlock();
 
     return 0;
 }
 
-void SctpServer::onIncomingPDU(sctp_assoc_t assoc_id, const SctpBusPDU &e)
+void SctpServer::onIncomingYetiPDU(sctp_assoc_t assoc_id, struct client_info &cinfo, const SctpBusPDU &e)
 {
-    //dbg("on incoming PDU");
+    dbg("on incoming yeti PDU");
 
     YetiEvent y_ev;
     if(!y_ev.ParseFromString(e.payload())) {
         err("failed to deserialize SctpBusPDU payload with size: %ld",e.payload().size());
         return;
     }
-
     dbg("got yeti event: %d",y_ev.data_case());
-    switch(y_ev.data_case()) {
-    case YetiEvent::kCfgRequest:
-        process_sctp_cfg_request(assoc_id,e,y_ev.cfg_request());
-        break;
-    case YetiEvent::kJson:
-        dbg("got json event: %s",
-            y_ev.json().c_str());
-        break;
-    default:
-        err("got unsupported yeti event: %d",y_ev.data_case());
+
+    if(e.type()==SctpBusPDU::REQUEST) {
+        switch(y_ev.data_case()) {
+        case YetiEvent::kCfgRequest:
+            process_sctp_cfg_request(assoc_id,e,y_ev.cfg_request());
+            break;
+        default:
+            err("got unsupported yeti request event: %d",y_ev.data_case());
+        }
+    } else if(e.type()==SctpBusPDU::REPLY) {
+        switch(y_ev.data_case()) {
+        case YetiEvent::kJson:
+            //dbg("got json reply");
+            process_sctp_json_reply(assoc_id,cinfo,y_ev.json());
+            break;
+         default:
+            err("got unsupported yeti reply event: %d",y_ev.data_case());
+        }
     }
+}
+
+void SctpServer::onIncomingJsonPDU(sctp_assoc_t assoc_id, struct client_info &cinfo, const SctpBusPDU &e)
+{
+    if(e.type()==SctpBusPDU::REQUEST) {
+        dbg("ignore unexpected request from jsonrpc session");
+        return;
+    }
+    process_sctp_json_reply(assoc_id,cinfo, e.payload());
 }
 
 static void fill_sctp_reply(SctpBusPDU &reply, const SctpBusPDU &req)
@@ -438,7 +455,6 @@ static void fill_sctp_reply(SctpBusPDU &reply, const SctpBusPDU &req)
 void SctpServer::process_sctp_cfg_request(sctp_assoc_t assoc_id, const SctpBusPDU &e, const CfgRequest &req)
 {
     SctpBusPDU reply;
-    //string cfg_reply;
     YetiEvent y;
     string reply_payload;
 
@@ -467,6 +483,127 @@ void SctpServer::process_sctp_cfg_request(sctp_assoc_t assoc_id, const SctpBusPD
     if(-1==send_to_assoc(assoc_id, payload, reply.GetCachedSize())) {
         err("send_to_assoc: %d",errno);
     }
+}
+
+static inline void serialize_reply_for_prometheus(
+    cJSON *j, const std::string &prefix,
+    const std::string &label, std::string &out, int level = 0)
+{
+    char *s;
+
+    //dbg("%p %s %s", j,prefix.c_str(),label.c_str());
+
+    switch(j->type) {
+    case cJSON_Object: {
+        string new_prefix = level ? (prefix+j->string+"_") : string();
+        for(cJSON *c=j->child; c; c = c->next) {
+            serialize_reply_for_prometheus(c,new_prefix,label,out,level+1);
+        }
+    } break;
+    case cJSON_Number:
+        s = cJSON_Print(j);
+        out+=prefix+j->string+label+s+'\n';
+        free(s);
+        break;
+    default:
+        break;
+    }
+}
+
+void SctpServer::process_sctp_json_reply(sctp_assoc_t assoc_id, struct client_info &cinfo, const string &json)
+{
+    //dbg("process sctp json reply: %s",json.c_str());
+
+    cJSON *j = cJSON_Parse(json.c_str());
+    if(!j) {
+        err("failed to parse jsonrpc reply");
+        return;
+    }
+
+    if(j->type != cJSON_Object) {
+        err("unexpected json type in jsonrpc reply: %d",j->type);
+        cJSON_Delete(j);
+        return;
+    }
+
+    cJSON *json_id = cJSON_GetObjectItem(j,"id");
+    if(!json_id) {
+        err("no id in json response");
+        cJSON_Delete(j);
+        return;
+    }
+
+    int id;
+    switch(json_id->type) {
+    case cJSON_String:
+        try {
+            id = std::stoi(json_id->valuestring);
+        } catch(...) {
+            err("failed to cast id: '%s' to integer",json_id->valuestring);
+            cJSON_Delete(j);
+            return;
+        }
+        break;
+    case cJSON_Number:
+        id = json_id->type;
+        break;
+    default:
+        err("unexpected id type in json response: %d",json_id->type);
+        cJSON_Delete(j);
+        return;
+    }
+
+    //dbg("json_id: %d",id);
+
+    jsonrpc_requests_mutex.lock();
+    auto it = jsonrpc_requests_by_cseq.find(id);
+    if(it==jsonrpc_requests_by_cseq.end()) {
+        dbg("id %d is not found in sent requests. ignore reply",id);
+        jsonrpc_requests_mutex.unlock();
+        cJSON_Delete(j);
+        return;
+    }
+
+    json_request_info &info = it->second;
+    info.sent_sctp_requests_assoc_id.erase(assoc_id);
+
+    //serialize collected replies to the prometheus format
+    // https://prometheus.io/docs/instrumenting/writing_exporters/
+    //info.result.reserve(info.result.size() + json.size());
+    if(cJSON *result = cJSON_GetObjectItem(j,"result")) {
+        string label = "{node_id=" + std::to_string(cinfo.node_id) + "} ";
+        serialize_reply_for_prometheus(result,string(),label,info.result);
+    }
+
+    cJSON_Delete(j);
+
+    if(process_collected_json_replies(info,false))
+        jsonrpc_requests_by_cseq.erase(it);
+
+    jsonrpc_requests_mutex.unlock();
+}
+
+void SctpServer::broadcast_json_request_unsafe(SctpBusPDU &request, struct json_request_info &req_info)
+{
+    string buf;
+    for(auto &client: clients) {
+        client_info &cinfo = client.second;
+        if(-1==cinfo.node_id) {
+            dbg("not initialized association. skip it");
+            continue;
+        }
+        cinfo.cseq++;
+        request.set_sequence(cinfo.cseq);
+        request.set_dst_node_id(cinfo.node_id);
+        request.SerializeToString(&buf);
+        if(buf.size()==send_to_assoc(client.first,(void *)buf.data(),buf.size())) {
+            //sent to assoc. add assoc to the waiting list
+            req_info.sent_sctp_requests_assoc_id.insert(client.first);
+        } else {
+            dbg("failed to send to the assoc: %d",client.first);
+        }
+    }
+    //process_collected_json_replies
 }
 
 int SctpServer::send_to_assoc(int assoc_id, void *payload, size_t payload_len)

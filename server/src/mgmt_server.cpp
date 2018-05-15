@@ -8,6 +8,8 @@
 
 #include "cfg.h"
 
+#define JSONRPC_TIMEOUT_SEC 3
+
 std::unique_ptr<mgmt_server> mgmt_server::_self(nullptr);
 
 class daemon_cfg_reader: public cfg_reader {
@@ -74,13 +76,19 @@ void mgmt_server::configure()
 	}
 
 	cfg_t *daemon_section = cfg_getsec(cr.get_cfg(),"daemon");
-	cfg_t *sctp_cfg = cfg_getsec(daemon_section,"sctp");
 
+	cfg_t *sctp_cfg = cfg_getsec(daemon_section,"sctp");
 	if(!sctp_cfg)
 		throw cfg_exception("missed 'daemon.sctp' section");
-
 	if(sctp_init(sctp_cfg)) {
 		throw std::string("failed to init sctp server");
+	}
+
+	cfg_t *http_cfg = cfg_getsec(daemon_section,"http");
+	if(!http_cfg)
+		throw cfg_exception("missed 'daemon.http' section");
+	if(http_init(http_cfg)) {
+		throw std::string("failed to init http server");
 	}
 
 	system_cfg_reader scr;
@@ -110,6 +118,7 @@ void mgmt_server::loop()
 	pthread_setname_np(__gthread_self(), "mgmt-server");
 
 	sctp_start();
+	http_start();
 
 	s = nn_socket(AF_SP,NN_REP);
 	if(s < 0){
@@ -151,7 +160,8 @@ void mgmt_server::loop()
 		nn_freemsg(msg);
 	}
 
-	on_stop();
+	sctp_stop();
+	http_stop();
 }
 
 int mgmt_server::process_peer(char *msg, int len)
@@ -238,3 +248,102 @@ void mgmt_server::show_config(){
 	cfg_mutex.unlock();
 }
 
+void mgmt_server::on_http_stats_request(struct evhttp_request *req)
+{
+	std::lock_guard<std::mutex> lk(clients_mutex);
+
+	if(clients.empty()) {
+		//no connected nodes. sent empty reply
+		dbg("no connected nodes. send empty reply");
+		http_post_event(new HttpEventReply(req,nullptr));
+		return;
+	}
+
+	SctpBusPDU request;
+
+	jsonrpc_cseq++;
+
+	std::string &json = *request.mutable_payload();
+	json = "{\"jsonrpc\":\"2.0\","
+		   "\"method\":\"yeti.show.stats\","
+		   "\"params\":{},"
+		   "\"id\":\"" + std::to_string(jsonrpc_cseq) + "\"}";
+
+	//dbg("created json: %s",json.c_str());
+
+	request.set_type(SctpBusPDU::REQUEST);
+	request.set_src_node_id(0);
+	request.set_src_session_id("mgmt");
+	request.set_dst_session_id("jsonrpc");
+
+	jsonrpc_requests_mutex.lock();
+	auto ret =
+		jsonrpc_requests_by_cseq.emplace(jsonrpc_cseq,json_request_info());
+	json_request_info &req_info = ret.first->second;
+
+	gettimeofday(&req_info.expire_at, nullptr);
+	req_info.expire_at.tv_sec += JSONRPC_TIMEOUT_SEC;
+	req_info.req = req;
+	req_info.cseq = jsonrpc_cseq;
+
+	broadcast_json_request_unsafe(request,req_info);
+
+	if(req_info.sent_sctp_requests_assoc_id.empty()) {
+		dbg("did not sent successfully to the any of the client. reply immediately");
+		jsonrpc_requests_by_cseq.erase(jsonrpc_cseq);
+		jsonrpc_requests_mutex.unlock();
+		http_post_event(new HttpEventReply(req,nullptr));
+		return;
+	}
+
+	jsonrpc_requests_mutex.unlock();
+}
+
+void mgmt_server::on_timer(struct timeval &now)
+{
+	jsonrpc_requests_mutex.lock();
+	//check for jsonrpc requests timeout
+	for(auto it = jsonrpc_requests_by_cseq.begin();
+		it != jsonrpc_requests_by_cseq.end(); )
+	{
+		json_request_info &i = it->second;
+		if(timercmp(&now,&i.expire_at,>)) {
+			dbg("request with cseq %d expired",it->first);
+			process_collected_json_replies(i,true);
+			it = jsonrpc_requests_by_cseq.erase(it);
+		} else {
+			++it;
+		}
+	}
+	jsonrpc_requests_mutex.unlock();
+
+	SctpServer::on_timer(now);
+}
+
+bool mgmt_server::process_collected_json_replies(json_request_info &req_info, bool timeout)
+{
+    if(!timeout && !req_info.sent_sctp_requests_assoc_id.empty()) {
+        dbg("we have more assocs without answer. "
+            "skip processing and keep request in the map");
+        return false;
+    }
+
+    //debug only
+    for(auto assoc : req_info.sent_sctp_requests_assoc_id) {
+        dbg("request %d reply timeout from assoc %d",
+            req_info.cseq, assoc);
+    }
+
+    //serialize collected replies to the prometheus format
+    // https://prometheus.io/docs/instrumenting/writing_exporters/
+
+    struct evbuffer *buf = evbuffer_new();
+    /*for(auto reply_it: req_info.replies_by_node_id) {
+        evbuffer_add_printf(buf,"node_id: %d",reply_it.first);
+        evbuffer_add(buf,reply_it.second.data(),reply_it.second.length());
+    }*/
+    evbuffer_add(buf,req_info.result.data(),req_info.result.size());
+    http_post_event(new HttpEventReply(req_info.req,buf));
+
+    return true; //remove request from the map
+}
