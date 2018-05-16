@@ -4,7 +4,7 @@
 
 #include <confuse.h>
 
-#define SCTP_BUS_DEFAULT_PORT 10101
+#define SCTP_BUS_DEFAULT_PORT 4444
 #define HTTP_DEFAULT_PORT 3000
 
 char sctp_bus_default_address[] = "127.0.0.1";
