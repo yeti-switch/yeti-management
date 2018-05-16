@@ -148,6 +148,8 @@ int main(int argc,char *argv[])
 				return 0;
 			}
 
+			srv.reinit_after_fork();
+
 			cfg.pid = getpid();
 			create_pid_file();
 

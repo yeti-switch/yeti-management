@@ -62,6 +62,8 @@ class HttpServer
     //void rpc_request_cb(struct evhttp_request *req);
     void status_request_cb(struct evhttp_request *req);
 
+    void reinit_after_fork();
+
     virtual void on_http_stats_request(struct evhttp_request *req) = 0;
 };
 

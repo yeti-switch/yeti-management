@@ -212,3 +212,8 @@ void HttpServer::http_process(HttpEventBase *ev)
     }
 }
 
+void HttpServer::reinit_after_fork()
+{
+    event_reinit(ev_base);
+}
+
