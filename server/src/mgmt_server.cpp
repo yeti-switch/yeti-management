@@ -255,7 +255,9 @@ void mgmt_server::on_http_stats_request(struct evhttp_request *req)
 	if(clients.empty()) {
 		//no connected nodes. sent empty reply
 		dbg("no connected nodes. send empty reply");
-		http_post_event(new HttpEventReply(req,nullptr));
+		struct evbuffer *buf = evbuffer_new();
+		evbuffer_add_printf(buf,"sctp_associations_count 0\n");
+		http_post_event(new HttpEventReply(req,buf));
 		return;
 	}
 
@@ -287,6 +289,10 @@ void mgmt_server::on_http_stats_request(struct evhttp_request *req)
 	req_info.cseq = jsonrpc_cseq;
 
 	broadcast_json_request_unsafe(request,req_info);
+
+	req_info.result =
+		"sctp_associations_count "
+		+ std::to_string(clients.size()) + '\n';
 
 	if(req_info.sent_sctp_requests_assoc_id.empty()) {
 		dbg("did not sent successfully to the any of the client. reply immediately");
@@ -323,25 +329,20 @@ void mgmt_server::on_timer(struct timeval &now)
 bool mgmt_server::process_collected_json_replies(json_request_info &req_info, bool timeout)
 {
     if(!timeout && !req_info.sent_sctp_requests_assoc_id.empty()) {
-        dbg("we have more assocs without answer. "
-            "skip processing and keep request in the map");
+        /*dbg("we have more assocs without answer. "
+            "skip processing and keep request in the map");*/
         return false;
     }
 
+#if 0
     //debug only
     for(auto assoc : req_info.sent_sctp_requests_assoc_id) {
         dbg("request %d reply timeout from assoc %d",
             req_info.cseq, assoc);
     }
-
-    //serialize collected replies to the prometheus format
-    // https://prometheus.io/docs/instrumenting/writing_exporters/
+#endif
 
     struct evbuffer *buf = evbuffer_new();
-    /*for(auto reply_it: req_info.replies_by_node_id) {
-        evbuffer_add_printf(buf,"node_id: %d",reply_it.first);
-        evbuffer_add(buf,reply_it.second.data(),reply_it.second.length());
-    }*/
     evbuffer_add(buf,req_info.result.data(),req_info.result.size());
     http_post_event(new HttpEventReply(req_info.req,buf));
 
