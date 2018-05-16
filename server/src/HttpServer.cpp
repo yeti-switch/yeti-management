@@ -45,7 +45,7 @@ int HttpServer::http_init(cfg_t *http_cfg)
     }
 
     evhttp_set_allowed_methods(ev_http, EVHTTP_REQ_GET | EVHTTP_REQ_POST | EVHTTP_REQ_HEAD);
-    //evhttp_set_default_content_type(ev_http,"application/json");
+    evhttp_set_default_content_type(ev_http," text/plain");
 
 #if 0
     evhttp_set_cb(
