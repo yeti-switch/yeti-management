@@ -45,7 +45,9 @@ int HttpServer::http_init(cfg_t *http_cfg)
     }
 
     evhttp_set_allowed_methods(ev_http, EVHTTP_REQ_GET | EVHTTP_REQ_POST | EVHTTP_REQ_HEAD);
-    evhttp_set_default_content_type(ev_http," text/plain");
+#if LIBEVENT_VERSION_NUMBER >= 0x01090000
+    evhttp_set_default_content_type(ev_http,"text/plain");
+#endif
 
 #if 0
     evhttp_set_cb(
@@ -157,6 +159,11 @@ void HttpServer::status_request_cb(struct evhttp_request *req)
         evhttp_send_reply(req, HTTP_OK, "OK", nullptr);
         return;
     }
+
+#if LIBEVENT_VERSION_NUMBER < 0x01090000
+    evhttp_add_header(evhttp_request_get_output_headers(req),
+                      "Content-Type","text/plain");
+#endif
 
     evhttp_send_reply_start(req, HTTP_OK, "OK");
 
