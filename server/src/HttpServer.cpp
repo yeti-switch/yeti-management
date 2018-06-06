@@ -56,7 +56,7 @@ int HttpServer::http_init(cfg_t *http_cfg)
 #endif
 
     evhttp_set_cb(
-        ev_http, "/status",
+        ev_http, "/metrics",
         [](struct evhttp_request *req, void *arg) {
             static_cast<HttpServer *>(arg)->status_request_cb(req);
         }, this);
