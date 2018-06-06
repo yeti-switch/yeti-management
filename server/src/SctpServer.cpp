@@ -573,7 +573,7 @@ void SctpServer::process_sctp_json_reply(sctp_assoc_t assoc_id, struct client_in
     // https://prometheus.io/docs/instrumenting/writing_exporters/
     //info.result.reserve(info.result.size() + json.size());
     if(cJSON *result = cJSON_GetObjectItem(j,"result")) {
-        string label = "{node_id=" + std::to_string(cinfo.node_id) + "} ";
+        string label = "{node_id=\"" + std::to_string(cinfo.node_id) + "\"} ";
         serialize_reply_for_prometheus(result,yeti_metrics_prefix,label,info.result);
     }
 
