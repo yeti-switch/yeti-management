@@ -24,6 +24,8 @@ do { \
     return -1; \
 } while(0)\
 
+static string yeti_metrics_prefix("yeti_");
+
 static void longlong2timespec(struct timespec &ts,unsigned long long msec)
 {
   if(0==msec){
@@ -495,7 +497,7 @@ static inline void serialize_reply_for_prometheus(
 
     switch(j->type) {
     case cJSON_Object: {
-        string new_prefix = level ? (prefix+j->string+"_") : string();
+        string new_prefix = level ? (prefix+j->string+"_") : prefix;
         for(cJSON *c=j->child; c; c = c->next) {
             serialize_reply_for_prometheus(c,new_prefix,label,out,level+1);
         }
@@ -572,7 +574,7 @@ void SctpServer::process_sctp_json_reply(sctp_assoc_t assoc_id, struct client_in
     //info.result.reserve(info.result.size() + json.size());
     if(cJSON *result = cJSON_GetObjectItem(j,"result")) {
         string label = "{node_id=" + std::to_string(cinfo.node_id) + "} ";
-        serialize_reply_for_prometheus(result,string(),label,info.result);
+        serialize_reply_for_prometheus(result,yeti_metrics_prefix,label,info.result);
     }
 
     cJSON_Delete(j);
