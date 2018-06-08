@@ -1,5 +1,7 @@
 cmake_minimum_required (VERSION 2.8)
 
+project(yeti-management)
+
 set(CMAKE_CXX_FLAGS "-g -O2 -fPIC -Wformat -Werror=format-security -std=c++11")
 set(CMAKE_SHARED_LINKER_FLAGS "-Wl,-z,relro")
 set(CMAKE_EXE_LINKER_FLAGS "-Wl,-z,relro")

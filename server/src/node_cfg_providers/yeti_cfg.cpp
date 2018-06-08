@@ -87,6 +87,9 @@ void yeti_cfg_provider::apply_cfg_node(cfg_t *in_cfg,
 		add2hash(c,"cdr_dir","dir",out);
 		add2hash(c,"writecdr_schema","schema",out);
 		add2hash(c,"writecdr_function","function",out);
+		add2hash(c,"cdr_check_interval","check_interval",out);
+		add2hash(c,"cdr_batch_timeout","batch_timeout",out);
+		add2hash(c,"cdr_batch_size","batch_size",out);
 			//master
 			apply_db_cfg(cfg_getsec(c,"master"),"mastercdr_",out);
 			//slave
