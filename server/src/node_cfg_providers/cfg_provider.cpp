@@ -24,6 +24,7 @@ cfg_value& cfg_value::operator=(const cfg_value& v) {
 	case Undef: break;
 	default: throw std::string("cfg_value: uknown rhs type");
 	}
+	return *this;
 }
 
 std::string cfg_value::asString() const { return get<std::string>(); }
