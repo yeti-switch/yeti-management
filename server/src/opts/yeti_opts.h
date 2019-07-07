@@ -86,6 +86,20 @@ cfg_opt_t sig_yeti_reg_opts[] = {
 	CFG_END()
 };
 
+//registrar
+
+cfg_opt_t sig_yeti_registrar_redis_opts[] = {
+	DCFG_STR(host),
+	DCFG_INT(port),
+	CFG_END()
+};
+
+cfg_opt_t sig_yeti_registrar_opts[] = {
+	DCFG_BOOL(enabled),
+	DCFG_SEC(redis,sig_yeti_registrar_redis_opts,CFGF_NONE),
+	CFG_END()
+};
+
 //auth
 cfg_opt_t sig_yeti_auth_opts[] = {
 	DCFG_STR(realm),
@@ -103,6 +117,7 @@ cfg_opt_t sig_yeti_opts[] = {
 	DCFG_SEC(cdr,sig_yeti_cdr_opts,CFGF_NONE),
 	DCFG_SEC(resources,sig_yeti_resources_opts,CFGF_NONE),
 	DCFG_SEC(registrations,sig_yeti_reg_opts,CFGF_NONE),
+	DCFG_SEC(registrar,sig_yeti_registrar_opts,CFGF_NONE),
 	DCFG_SEC(rpc,sig_yeti_rpc_opts,CFGF_NONE),
 	DCFG_SEC(statistics,sig_yeti_statistics_opts,CFGF_NONE),
 	DCFG_SEC(auth,sig_yeti_auth_opts,CFGF_NONE),

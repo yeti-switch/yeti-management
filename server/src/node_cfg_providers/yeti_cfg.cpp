@@ -107,6 +107,13 @@ void yeti_cfg_provider::apply_cfg_node(cfg_t *in_cfg,
 		c = cfg_getsec(y,"registrations");
 		add2hash(c,"reg_check_interval","check_interval",out);
 
+		//registrar
+		c = cfg_getsec(y,"registrar");
+		add2hash(c,"registrar_enabled","enabled",out);
+			c = cfg_getsec(c, "redis");
+			add2hash(c,"registrar_redis_host","host",out);
+			add2hash(c,"registrar_redis_port","port",out);
+
 		//rpc
 		c = cfg_getsec(y,"rpc");
 		add2hash(c,"calls_show_limit","calls_show_limit",out);
