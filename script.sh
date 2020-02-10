@@ -261,7 +261,7 @@ EOF
 fi
 
 cat >>Dockerfile <<EOF
-RUN apt-get install --yes --no-install-recommends --force-yes build-essential cmake libprotobuf-dev protobuf-compiler libconfuse-dev libnanomsg-dev libsctp-dev libevent-dev
+RUN apt-get install --yes --no-install-recommends --force-yes build-essential cmake pkg-kde-tools libprotobuf-dev protobuf-compiler libconfuse-dev libnanomsg-dev libsctp-dev libevent-dev
 
 RUN rm -f Dockerfile
 RUN git checkout .travis.yml || true
