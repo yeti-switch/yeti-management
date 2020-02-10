@@ -41,8 +41,8 @@ Error () {
 
 ## Configuration ##############################################################
 
-SOURCE="$(dpkg-parsechangelog | awk '/^Source:/ { print $2 }')"
-VERSION="$(dpkg-parsechangelog | awk '/^Version:/ { print $2 }')"
+SOURCE="yeti-management"
+VERSION="$(git describe --tags)"
 
 Info "Starting build of ${SOURCE} using travis.debian.net"
 
