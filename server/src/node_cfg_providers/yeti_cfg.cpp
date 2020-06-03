@@ -110,6 +110,8 @@ void yeti_cfg_provider::apply_cfg_node(cfg_t *in_cfg,
 		//registrar
 		c = cfg_getsec(y,"registrar");
 		add2hash(c,"registrar_enabled","enabled",out);
+		add2hash(c,"registrar_expires_min","expires_min",out);
+		add2hash(c,"registrar_expires_max","expires_max",out);
 			c = cfg_getsec(c, "redis");
 			add2hash(c,"registrar_redis_host","host",out);
 			add2hash(c,"registrar_redis_port","port",out);
